@@ -1,10 +1,22 @@
 # Nerdy Glyph Searcher
 
-Tanner Weber 2026
+_WIP_
 
-Search through font glyphs in the terminal.
+Search through [nerd font](https://www.nerdfonts.com/) glyphs in the terminal.
 
-## Dependencies
+![Screenshot](screenshot.png)
+
+_Screenshot of interactive search_
+
+## Requirements
+
+Supported Terminals:
+
+* WezTerm
+
+Fonts must be `.ttf`.
+
+### Runtime Dependencies
 
 * `fzf` for interactive searching
 
