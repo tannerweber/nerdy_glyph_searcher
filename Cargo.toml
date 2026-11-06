@@ -1,7 +1,13 @@
 [package]
 name = "nerdy_glyph_searcher"
 version = "0.1.0"
+authors = ["Tanner Weber <tannerweber@proton.me>"]
 edition = "2024"
+description = "Search through font glyphs in the terminal."
+readme = "README.md"
+repository = "https://github.com/tannerweber/nerdy_glyph_searcher"
+license = "AGPL-3.0-or-later"
+keywords = ["font", "nerd", "terminal", "rice"]
 
 [dependencies]
 clap = { version = "4.6.7", features = ["derive"] }
