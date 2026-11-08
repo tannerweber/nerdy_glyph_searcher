@@ -21,6 +21,7 @@ use std::{
     io::Write,
     path::PathBuf,
     process::{Command, Stdio},
+    string::ToString,
     sync::mpsc::channel,
 };
 use ttf_parser::{Face, GlyphId, cmap::Subtable};
@@ -194,11 +195,11 @@ enum Terminal {
 
 impl Terminal {
     fn get_terminal_font_file(self) -> Result<PathBuf, Error> {
-        if matches!(self, Self::WezTerm) {
-            return Self::get_wezterm_font_file();
+        match self {
+            Self::WezTerm => Self::get_wezterm_font_file(),
+            Self::Ghostty => Self::get_ghostty_font_file(),
+            Self::Kitty => Self::get_kitty_font_file(),
         }
-
-        Err(Error::FontFileNotObtained)
     }
 
     /// Uses environment variables to get the font file detected for the
@@ -222,39 +223,80 @@ impl Terminal {
     }
 
     fn get_wezterm_font_file() -> Result<PathBuf, Error> {
-        let mut path = PathBuf::new();
+        let path: PathBuf = String::from_utf8(
+            Command::new("sh")
+                .arg("-c")
+                .arg("wezterm ls-fonts --text ''")
+                .output()?
+                .stdout,
+        )?
+        .split('\n')
+        .flat_map(|line| line.split(' '))
+        .filter(|hunk| hunk.contains(".ttf"))
+        .map(|hunk| hunk.replace(',', ""))
+        .collect::<Vec<String>>()
+        .first()
+        .ok_or(Error::FontFileNotObtained)?
+        .into();
 
-        let stdout = Command::new("sh")
-            .arg("-c")
-            .arg("wezterm ls-fonts --text ''")
-            .output()?
-            .stdout;
-
-        let s = String::from_utf8(stdout)?;
-
-        let path_list: Vec<String> = s
-            .split('\n')
-            .flat_map(|line| line.split(' '))
-            .filter(|hunk| hunk.contains(".ttf"))
-            .map(|hunk| hunk.replace(',', ""))
-            .collect();
-
-        // Only 1 font should have been printed
-        if path_list.len() != 1 {
+        if !path.is_absolute()
+            || path.extension().ok_or(Error::FontFileNotObtained)? != "ttf"
+        {
             return Err(Error::FontFileNotObtained);
         }
 
-        for s in &path_list {
-            path = s.into();
-        }
+        Ok(path)
+    }
 
-        if !path.is_absolute() {
-            return Err(Error::FontFileNotObtained);
-        }
+    fn get_ghostty_font_file() -> Result<PathBuf, Error> {
+        let mut font_name = String::from_utf8(
+            Command::new("sh")
+                .arg("-c")
+                .arg("ghostty +show-face --string=''")
+                .output()?
+                .stdout,
+        )?
+        .split('\n')
+        .filter(|line| line.contains("U+F2B4"))
+        .map(ToString::to_string)
+        .collect::<Vec<String>>()
+        .first()
+        .ok_or(Error::FontFileNotObtained)?
+        .to_owned();
 
-        let extension = path.extension().ok_or(Error::FontFileNotObtained)?;
+        let i = font_name.find('“').ok_or(Error::FontFileNotObtained)?;
+        let mut end_of_line = font_name.split_off(i);
+        end_of_line.remove(0);
 
-        if extension != "ttf" {
+        let i = end_of_line.find('”').ok_or(Error::FontFileNotObtained)?;
+        let _ = end_of_line.split_off(i);
+
+        Self::get_font_file_by_name(&end_of_line)
+    }
+
+    fn get_kitty_font_file() -> Result<PathBuf, Error> {
+        todo!()
+    }
+
+    fn get_font_file_by_name(name: &str) -> Result<PathBuf, Error> {
+        let path: PathBuf = String::from_utf8(
+            Command::new("sh")
+                .arg("-c")
+                .arg("fc-match -f '%{file}\n' '".to_string() + name + "'")
+                .output()?
+                .stdout,
+        )?
+        .split('\n')
+        .filter(|line| line.contains(".ttf"))
+        .map(ToString::to_string)
+        .collect::<Vec<String>>()
+        .first()
+        .ok_or(Error::FontFileNotObtained)?
+        .into();
+
+        if !path.is_absolute()
+            || path.extension().ok_or(Error::FontFileNotObtained)? != "ttf"
+        {
             return Err(Error::FontFileNotObtained);
         }
 

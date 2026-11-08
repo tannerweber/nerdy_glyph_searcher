@@ -12,13 +12,15 @@ _Screenshot of interactive search_
 
 Supported Terminals:
 
-* WezTerm
+* WezTerm on Linux
+* Ghostty on Linux
 
 Fonts must be `.ttf`.
 
 ### Runtime Dependencies
 
 * `fzf` for interactive searching
+* `fc-match` from `fontconfig` for Ghostty
 
 ## License
 
