@@ -52,7 +52,7 @@ fn main() -> Result<(), Error> {
         if args.output {
             println!("{glyphs}");
         } else {
-            let mut child = Command::new("fzf")
+            let mut child = Command::new(Dependency::Fzf.exe()?)
                 .stdin(Stdio::piped())
                 .stdout(Stdio::piped())
                 .spawn()?;
@@ -282,7 +282,12 @@ impl Terminal {
         let path: PathBuf = String::from_utf8(
             Command::new("sh")
                 .arg("-c")
-                .arg("fc-match -f '%{file}\n' '".to_string() + name + "'")
+                .arg(
+                    Dependency::FcMatch.exe()?
+                        + " -f '%{file}\n' '"
+                        + name
+                        + "'",
+                )
                 .output()?
                 .stdout,
         )?
@@ -311,6 +316,28 @@ impl std::fmt::Display for Terminal {
             Self::Kitty => write!(f, "Kitty"),
             Self::WezTerm => write!(f, "WezTerm"),
         }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum Dependency {
+    FcMatch,
+    Fzf,
+}
+
+impl Dependency {
+    fn exe(self) -> Result<String, Error> {
+        let exe_name = match self {
+            Self::FcMatch => "fc-match",
+            Self::Fzf => "fzf",
+        }
+        .to_string();
+
+        if Command::new(&exe_name).arg("--version").output().is_err() {
+            return Err(Error::RuntimeDependencyNotFound(self));
+        }
+
+        Ok(exe_name)
     }
 }
 
@@ -344,6 +371,7 @@ pub enum Error {
     InvalidUnicodeConversion,
     Io(std::io::Error),
     Recv(std::sync::mpsc::RecvError),
+    RuntimeDependencyNotFound(Dependency),
     Send,
     TerminalNotIdentified,
 }
@@ -373,6 +401,9 @@ impl std::fmt::Display for Error {
             Self::Io(ref err) => write!(f, "STD IO error: {err}"),
             Self::Recv(ref err) => {
                 write!(f, "Reciever error: {err}")
+            }
+            Self::RuntimeDependencyNotFound(dep) => {
+                write!(f, "Runtime dependency not found error: {dep:?}")
             }
             Self::Send => {
                 write!(f, "Thread send error")
