@@ -98,38 +98,6 @@ fn get_glyph_name_list(font_path: &Path) -> Result<String, Error> {
         .collect::<String>())
 }
 
-/// Get the unicode character corresponding to a named glyph in a font.
-///
-/// # Errors
-///
-/// `name` does not match any glyph.
-pub fn get_unicode_char(face: &Face, name: &str) -> Result<char, Error> {
-    let glyph_id =
-        face.glyph_index_by_name(name).ok_or(Error::GlyphNotFound)?;
-    let mut unicode_num: u32 = 0;
-
-    face.tables()
-        .cmap
-        .into_iter()
-        .flat_map(|cmap| cmap.subtables)
-        .filter(Subtable::is_unicode)
-        .for_each(|subtable| {
-            subtable.codepoints(|codepoint| {
-                if char::from_u32(codepoint).and_then(|ch| face.glyph_index(ch))
-                    == Some(glyph_id)
-                {
-                    unicode_num = codepoint;
-                }
-            });
-        });
-
-    let Some(unicode_char) = std::char::from_u32(unicode_num) else {
-        return Err(Error::InvalidUnicodeConversion);
-    };
-
-    Ok(unicode_char)
-}
-
 /// Returns a `Vector` of all valid glyphs in a face.
 #[must_use]
 fn get_glyphs(face: &Face) -> Vec<char> {
@@ -173,36 +141,6 @@ fn get_glyph_names(face: &Face, glyphs: &Vec<char>) -> Vec<(char, String)> {
         })
         .filter(|line| !line.1.starts_with("uni"))
         .collect::<Vec<(char, String)>>()
-}
-
-/// Print out subtables for discovering differences
-pub fn print_subtables(face: &Face) {
-    for (i, subtable) in face
-        .tables()
-        .cmap
-        .iter()
-        .flat_map(|cmap| cmap.subtables)
-        .enumerate()
-    {
-        println!("COUNT: {i}");
-        println!("ENCODING ID: {}", subtable.encoding_id);
-        println!("FORMAT: {:?}", subtable.format);
-        println!("PLATFORM ID: {:?}", subtable.platform_id);
-        println!("IS UNICODE: {:?}", subtable.is_unicode());
-
-        subtable.codepoints(|codepoint| {
-            if let Some(unicode_char) = std::char::from_u32(codepoint) {
-                let id: GlyphId =
-                    face.glyph_index(unicode_char).unwrap_or_default();
-                let name = face.glyph_name(id).unwrap_or("fake");
-                let mut line = String::new();
-                line.push(unicode_char);
-                line.push(' ');
-                line.push_str(name);
-                println!("{line}");
-            }
-        });
-    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -455,5 +393,72 @@ impl From<std::io::Error> for Error {
 impl From<std::sync::mpsc::RecvError> for Error {
     fn from(value: std::sync::mpsc::RecvError) -> Self {
         Self::Recv(value)
+    }
+}
+
+pub mod helper {
+    use super::{Error, Face, GlyphId, Subtable};
+
+    /// Print out subtables for discovering differences
+    pub fn print_subtables(face: &Face) {
+        for (i, subtable) in face
+            .tables()
+            .cmap
+            .iter()
+            .flat_map(|cmap| cmap.subtables)
+            .enumerate()
+        {
+            println!("COUNT: {i}");
+            println!("ENCODING ID: {}", subtable.encoding_id);
+            println!("FORMAT: {:?}", subtable.format);
+            println!("PLATFORM ID: {:?}", subtable.platform_id);
+            println!("IS UNICODE: {:?}", subtable.is_unicode());
+
+            subtable.codepoints(|codepoint| {
+                if let Some(unicode_char) = std::char::from_u32(codepoint) {
+                    let id: GlyphId =
+                        face.glyph_index(unicode_char).unwrap_or_default();
+                    let name = face.glyph_name(id).unwrap_or("fake");
+                    let mut line = String::new();
+                    line.push(unicode_char);
+                    line.push(' ');
+                    line.push_str(name);
+                    println!("{line}");
+                }
+            });
+        }
+    }
+
+    /// Get the unicode character corresponding to a named glyph in a font.
+    ///
+    /// # Errors
+    ///
+    /// `name` does not match any glyph.
+    pub fn get_unicode_char(face: &Face, name: &str) -> Result<char, Error> {
+        let glyph_id =
+            face.glyph_index_by_name(name).ok_or(Error::GlyphNotFound)?;
+        let mut unicode_num: u32 = 0;
+
+        face.tables()
+            .cmap
+            .into_iter()
+            .flat_map(|cmap| cmap.subtables)
+            .filter(Subtable::is_unicode)
+            .for_each(|subtable| {
+                subtable.codepoints(|codepoint| {
+                    if char::from_u32(codepoint)
+                        .and_then(|ch| face.glyph_index(ch))
+                        == Some(glyph_id)
+                    {
+                        unicode_num = codepoint;
+                    }
+                });
+            });
+
+        let Some(unicode_char) = std::char::from_u32(unicode_num) else {
+            return Err(Error::InvalidUnicodeConversion);
+        };
+
+        Ok(unicode_char)
     }
 }
