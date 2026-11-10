@@ -20,7 +20,7 @@ use rayon::prelude::*;
 use std::{
     env, fs,
     io::Write,
-    path::PathBuf,
+    path::{Path, PathBuf},
     process::{Command, Stdio},
     string::ToString,
     sync::mpsc::channel,
@@ -31,74 +31,71 @@ fn main() -> Result<(), Error> {
     let args = Args::parse();
 
     let font_path = if let Some(path) = args.font {
-        Some(path.into())
+        path.into()
     } else {
         let terminal_program = Terminal::identify_terminal()?;
-        let path = Some(terminal_program.get_terminal_font_file()?);
+        let font_path = terminal_program.get_terminal_font_file()?;
         if args.verbose {
             eprintln!("Terminal: {terminal_program}");
         }
-        path
+        font_path
     };
 
-    if let Some(path) = font_path {
-        if args.verbose {
-            eprintln!("Font Path: {}", path.display());
-        }
+    if args.verbose {
+        eprintln!("Font Path: {}", font_path.display());
+    }
 
-        let file_contents = fs::read(path)?;
-        let face = Face::parse(&file_contents, 0)?;
-        let glyphs = get_glyphs(&face);
-        let names = || {
-            get_glyph_names(&face, &glyphs)
-                .par_iter()
-                .map(|(a, b)| {
-                    let mut s = String::new();
-                    s.push(*a);
-                    s.push(' ');
-                    s.push_str(b);
-                    s.push('\n');
-                    s
-                })
-                .collect::<String>()
-        };
-
-        if args.output {
-            println!("{}", names());
-        } else {
-            let mut child = Command::new(Dependency::Fzf.exe()?)
-                .stdin(Stdio::piped())
-                .stdout(Stdio::piped())
-                .spawn()?;
-            let mut stdin = child.stdin.take().ok_or(Error::FzfSpawn)?;
-            let (tx, rx) = channel();
-            let names = names();
-
-            if tx.send(names).is_err() {
-                return Err(Error::Send);
-            }
-
-            if std::thread::spawn(move || {
-                #[allow(clippy::unwrap_used)]
-                let value = rx.recv().unwrap();
-                #[allow(clippy::unwrap_used)]
-                stdin.write_all(value.as_bytes()).unwrap();
-            })
-            .join()
-            .is_err()
-            {
-                return Err(Error::FzfSpawn);
-            }
-
-            let output = child.wait_with_output()?;
-
-            println!("{}", String::from_utf8(output.stdout)?);
-        }
+    if args.output {
+        println!("{}", get_glyph_name_list(&font_path)?);
     } else {
-        return Err(Error::FontFileNotObtained);
+        let mut child = Command::new(Dependency::Fzf.exe()?)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .spawn()?;
+        let mut stdin = child.stdin.take().ok_or(Error::FzfSpawn)?;
+        let (tx, rx) = channel();
+        let names = get_glyph_name_list(&font_path)?;
+
+        if tx.send(names).is_err() {
+            return Err(Error::Send);
+        }
+
+        if std::thread::spawn(move || {
+            #[allow(clippy::unwrap_used)]
+            let value = rx.recv().unwrap();
+            #[allow(clippy::unwrap_used)]
+            stdin.write_all(value.as_bytes()).unwrap();
+        })
+        .join()
+        .is_err()
+        {
+            return Err(Error::FzfSpawn);
+        }
+
+        let output = child.wait_with_output()?;
+
+        println!("{}", String::from_utf8(output.stdout)?);
     }
 
     Ok(())
+}
+
+/// Returnns a `String` containing every glyph and its corresponding name.
+fn get_glyph_name_list(font_path: &Path) -> Result<String, Error> {
+    let file_contents = fs::read(font_path)?;
+    let face = Face::parse(&file_contents, 0)?;
+    let glyphs = get_glyphs(&face);
+    Ok(get_glyph_names(&face, &glyphs)
+        .par_iter()
+        .map(|(a, b)| {
+            let mut s = String::new();
+            s.push(*a);
+            s.push(' ');
+            s.push_str(b);
+            s.push('\n');
+            s
+        })
+        .collect::<String>())
 }
 
 /// Get the unicode character corresponding to a named glyph in a font.
