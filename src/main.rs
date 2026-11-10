@@ -16,6 +16,7 @@
 // along with Foobar. If not, see <https://www.gnu.org/licenses/>.
 
 use clap::Parser;
+use rayon::prelude::*;
 use std::{
     env, fs,
     io::Write,
@@ -47,10 +48,23 @@ fn main() -> Result<(), Error> {
 
         let file_contents = fs::read(path)?;
         let face = Face::parse(&file_contents, 0)?;
-        let glyphs: String = get_all_glyphs(&face).join("\n");
+        let glyphs = get_glyphs(&face);
+        let names = || {
+            get_glyph_names(&face, &glyphs)
+                .par_iter()
+                .map(|(a, b)| {
+                    let mut s = String::new();
+                    s.push(*a);
+                    s.push(' ');
+                    s.push_str(b);
+                    s.push('\n');
+                    s
+                })
+                .collect::<String>()
+        };
 
         if args.output {
-            println!("{glyphs}");
+            println!("{}", names());
         } else {
             let mut child = Command::new(Dependency::Fzf.exe()?)
                 .stdin(Stdio::piped())
@@ -58,7 +72,9 @@ fn main() -> Result<(), Error> {
                 .spawn()?;
             let mut stdin = child.stdin.take().ok_or(Error::FzfSpawn)?;
             let (tx, rx) = channel();
-            if tx.send(glyphs).is_err() {
+            let names = names();
+
+            if tx.send(names).is_err() {
                 return Err(Error::Send);
             }
 
@@ -117,10 +133,10 @@ pub fn get_unicode_char(face: &Face, name: &str) -> Result<char, Error> {
     Ok(unicode_char)
 }
 
-/// Returns a `Vector` of glyphs, where each element is a `String`
-/// containing the name and the icon.
-fn get_all_glyphs(face: &Face) -> Vec<String> {
-    let mut glyphs: Vec<String> = Vec::new();
+/// Returns a `Vector` of all valid glyphs in a face.
+#[must_use]
+fn get_glyphs(face: &Face) -> Vec<char> {
+    let mut s = Vec::<char>::with_capacity(10000);
 
     face.tables()
         .cmap
@@ -138,22 +154,28 @@ fn get_all_glyphs(face: &Face) -> Vec<String> {
         })
         .for_each(|subtable| {
             subtable.codepoints(|codepoint| {
-                if let Some(unicode_char) = std::char::from_u32(codepoint) {
-                    let id: GlyphId =
-                        face.glyph_index(unicode_char).unwrap_or_default();
-                    let name = face.glyph_name(id).unwrap_or("fake");
-                    if !name.starts_with("uni") {
-                        let mut line = String::new();
-                        line.push(unicode_char);
-                        line.push(' ');
-                        line.push_str(name);
-                        glyphs.push(line);
-                    }
+                if let Some(unicode_char) = char::from_u32(codepoint) {
+                    s.push(unicode_char);
                 }
             });
         });
 
+    s
+}
+
+/// Returns a `Vector` of glyphs and their corresponding names.
+/// Parallelizing is important here.
+#[must_use]
+fn get_glyph_names(face: &Face, glyphs: &Vec<char>) -> Vec<(char, String)> {
     glyphs
+        .par_iter()
+        .map(|g| {
+            let id = face.glyph_index(*g).unwrap_or_default();
+            let glyph_name = face.glyph_name(id).unwrap_or("fake").to_owned();
+            (*g, glyph_name)
+        })
+        .filter(|line| !line.1.starts_with("uni"))
+        .collect::<Vec<(char, String)>>()
 }
 
 /// Print out subtables for discovering differences
