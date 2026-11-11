@@ -191,9 +191,8 @@ impl Terminal {
 
     fn get_wezterm_font_file() -> Result<PathBuf, Error> {
         let path: PathBuf = String::from_utf8(
-            Command::new("sh")
-                .arg("-c")
-                .arg("wezterm ls-fonts --text ''")
+            Command::new("wezterm")
+                .args(["ls-fonts", "--text", "''"])
                 .output()?
                 .stdout,
         )?
@@ -217,9 +216,8 @@ impl Terminal {
 
     fn get_ghostty_font_file() -> Result<PathBuf, Error> {
         let mut font_name = String::from_utf8(
-            Command::new("sh")
-                .arg("-c")
-                .arg("ghostty +show-face --string=''")
+            Command::new("ghostty")
+                .args(["+show-face", "--string=''"])
                 .output()?
                 .stdout,
         )?
