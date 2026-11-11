@@ -27,7 +27,14 @@ use std::{
 };
 use ttf_parser::{Face, GlyphId, cmap::Subtable};
 
-fn main() -> Result<(), Error> {
+fn main() {
+    if let Err(err) = run() {
+        eprintln!("{err}");
+        std::process::exit(1);
+    }
+}
+
+fn run() -> Result<(), Error> {
     let args = Args::parse();
 
     let font_path = if let Some(path) = args.font {
@@ -146,7 +153,6 @@ fn get_glyph_names(face: &Face, glyphs: &Vec<char>) -> Vec<(char, String)> {
 #[derive(Debug, Clone, Copy)]
 enum Terminal {
     Ghostty,
-    Kitty,
     WezTerm,
 }
 
@@ -155,7 +161,6 @@ impl Terminal {
         match self {
             Self::WezTerm => Self::get_wezterm_font_file(),
             Self::Ghostty => Self::get_ghostty_font_file(),
-            Self::Kitty => Self::get_kitty_font_file(),
         }
     }
 
@@ -168,12 +173,10 @@ impl Terminal {
             return Ok(Self::WezTerm);
         }
 
-        if let Ok(term) = env::var("TERM") {
-            match term.as_str() {
-                "xterm-ghostty" => return Ok(Self::Ghostty),
-                "xterm-kitty" => return Ok(Self::Kitty),
-                _ => (),
-            }
+        if let Ok(term) = env::var("TERM")
+            && term.as_str() == "xterm-ghostty"
+        {
+            return Ok(Self::Ghostty);
         }
 
         Err(Error::TerminalNotIdentified)
@@ -231,10 +234,6 @@ impl Terminal {
         Self::get_font_file_by_name(&end_of_line)
     }
 
-    fn get_kitty_font_file() -> Result<PathBuf, Error> {
-        todo!()
-    }
-
     fn get_font_file_by_name(name: &str) -> Result<PathBuf, Error> {
         let path: PathBuf = String::from_utf8(
             Command::new("sh")
@@ -270,7 +269,6 @@ impl std::fmt::Display for Terminal {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match *self {
             Self::Ghostty => write!(f, "Ghostty"),
-            Self::Kitty => write!(f, "Kitty"),
             Self::WezTerm => write!(f, "WezTerm"),
         }
     }
@@ -366,7 +364,11 @@ impl std::fmt::Display for Error {
                 write!(f, "Thread send error")
             }
             Self::TerminalNotIdentified => {
-                write!(f, "Could not identify terminal program error")
+                write!(
+                    f,
+                    "Could not identify terminal program error. \
+                    Consider specifying the font manually with '-f'"
+                )
             }
         }
     }
