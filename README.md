@@ -1,7 +1,5 @@
 # Nerdy Glyph Searcher
 
-_WIP_
-
 Search through [nerd font](https://www.nerdfonts.com/) glyphs in the terminal.
 
 ![Screenshot](screenshot.png)
@@ -10,17 +8,48 @@ _Screenshot of interactive search_
 
 ## Requirements
 
-Supported Terminals:
-
-* WezTerm on Linux
-* Ghostty on Linux
-
 Fonts must be `.ttf`.
+
+### Terminal
+
+Any terminal should work as long as the font file specified matches the one
+used by the terminal.
+
+Auto-Detection Supported Terminals:
+
+* WezTerm
+* Ghostty
 
 ### Runtime Dependencies
 
 * `fzf` for interactive searching
 * `fc-match` from `fontconfig` for Ghostty
+
+## Usage
+
+The program can auto-detect the font file to use.
+
+```sh
+nerdy_glyph_searcher
+```
+
+Manually specify the font file to use.
+
+```sh
+nerdy_glyph_searcher -f /usr/share/fonts/truetype/NerdFonts/Hack/HackNerdFontMono-Regular.ttf
+```
+
+Send the output to stdout instead of interactive mode.
+
+```sh
+nerdy_glyph_searcher -o | grep "vim"
+```
+
+OR
+
+```sh
+nerdy_glyph_searcher -o | fzf --layout=default
+```
 
 ## License
 

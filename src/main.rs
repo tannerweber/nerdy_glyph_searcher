@@ -56,6 +56,13 @@ fn run() -> Result<(), Error> {
         println!("{}", get_glyph_name_list(&font_path)?);
     } else {
         let mut child = Command::new(Dependency::Fzf.exe()?)
+            .args([
+                "--exact",
+                "--layout=reverse",
+                "--border=rounded",
+                "--padding=1",
+                "--border-label= Nerdy Glyph Searcher ",
+            ])
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .spawn()?;
@@ -306,10 +313,6 @@ struct Args {
 
     #[arg(short, long)]
     verbose: bool,
-
-    /// Use exact matching in fuzzy finding
-    #[arg(short, long)]
-    exact: bool,
 
     /// Send results to stdout instead of interactive mode
     #[arg(short, long)]
