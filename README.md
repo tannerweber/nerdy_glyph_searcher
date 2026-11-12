@@ -8,6 +8,12 @@ _Screenshot of interactive search_
 
 ## Requirements
 
+### Operating System
+
+Only tested on Linux.
+
+### Font
+
 Fonts must be `.ttf`.
 
 ### Terminal
