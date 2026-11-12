@@ -13,13 +13,14 @@ rustPlatform.buildRustPackage {
 
   src = ./.;
 
-  cargoHash = "sha256-iISx+bAhvABMrkG1+HwKW77p1UkFIMktpLY/lYubl6s=";
+  cargoHash = "sha256-XpcNeICN3k4hO8YaSXFQkVuopl221seOcUF3JgJl21E=";
 
   nativeBuildInputs = [ installShellFiles ];
   postInstall = ''
     installShellCompletion --cmd ${name} \
       --bash <($out/bin/${name} --shell-completion bash) \
       --fish <($out/bin/${name} --shell-completion fish) \
+      --nushell <($out/bin/${name} --shell-completion nushell) \
       --zsh <($out/bin/${name} --shell-completion zsh)
   '';
 

@@ -12,6 +12,7 @@ keywords = ["font", "nerd", "terminal", "rice"]
 [dependencies]
 clap = { version = "4.6.7", features = ["derive"] }
 clap_complete = "4.6.11"
+clap_complete_nushell = "4.6.2"
 rayon = "1.12.0"
 ttf-parser = "0.25.1"
 

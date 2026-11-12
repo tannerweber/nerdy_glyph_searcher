@@ -338,6 +338,7 @@ enum Shell {
     #[clap(name = "powershell", alias = "pwsh", alias = "power-shell")]
     PowerShell,
     Zsh,
+    Nushell,
 }
 
 impl Shell {
@@ -366,6 +367,14 @@ impl Shell {
             }
             Self::Zsh => {
                 g(clap_complete::shells::Shell::Zsh);
+            }
+            Self::Nushell => {
+                clap_complete::generate(
+                    clap_complete_nushell::Nushell,
+                    &mut Args::command(),
+                    EXE_NAME,
+                    &mut io::stdout(),
+                );
             }
         }
     }
