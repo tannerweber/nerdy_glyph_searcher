@@ -15,10 +15,10 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with Foobar. If not, see <https://www.gnu.org/licenses/>.
 
-use clap::Parser;
+use clap::{CommandFactory, Parser, ValueEnum};
 use rayon::prelude::*;
 use std::{
-    env, fs,
+    env, fs, io,
     io::Write,
     path::{Path, PathBuf},
     process::{Command, Stdio},
@@ -26,6 +26,8 @@ use std::{
     sync::mpsc::channel,
 };
 use ttf_parser::{Face, GlyphId, cmap::Subtable};
+
+const EXE_NAME: &str = "nerdy_glyph_searcher";
 
 fn main() {
     if let Err(err) = run() {
@@ -36,6 +38,11 @@ fn main() {
 
 fn run() -> Result<(), Error> {
     let args = Args::parse();
+
+    if let Some(shell) = args.shell_completion {
+        shell.print_completion();
+        return Ok(());
+    }
 
     let font_path = if let Some(path) = args.font {
         path.into()
@@ -309,12 +316,59 @@ struct Args {
     #[arg(short, long)]
     font: Option<String>,
 
+    /// Use verbose output
     #[arg(short, long)]
     verbose: bool,
 
     /// Send results to stdout instead of interactive mode
     #[arg(short, long)]
     output: bool,
+
+    /// Generate and print shell completion for the specified shell
+    #[arg(long, name = "shell-completion", value_name = "SHELL")]
+    shell_completion: Option<Shell>,
+}
+
+#[derive(Debug, Clone, Copy, ValueEnum)]
+enum Shell {
+    Bash,
+    Elvish,
+    Fish,
+    #[allow(clippy::enum_variant_names)]
+    #[clap(name = "powershell", alias = "pwsh", alias = "power-shell")]
+    PowerShell,
+    Zsh,
+}
+
+impl Shell {
+    fn print_completion(self) {
+        fn g(shell: clap_complete::shells::Shell) {
+            clap_complete::generate(
+                shell,
+                &mut Args::command(),
+                EXE_NAME,
+                &mut io::stdout(),
+            );
+        }
+
+        match self {
+            Self::Bash => {
+                g(clap_complete::shells::Shell::Bash);
+            }
+            Self::Elvish => {
+                g(clap_complete::shells::Shell::Elvish);
+            }
+            Self::Fish => {
+                g(clap_complete::shells::Shell::Fish);
+            }
+            Self::PowerShell => {
+                g(clap_complete::shells::Shell::PowerShell);
+            }
+            Self::Zsh => {
+                g(clap_complete::shells::Shell::Zsh);
+            }
+        }
+    }
 }
 
 #[derive(Debug)]
