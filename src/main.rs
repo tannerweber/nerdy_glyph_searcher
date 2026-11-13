@@ -40,7 +40,7 @@ fn run() -> Result<(), Error> {
     let args = cli::Args::parse();
 
     if let Some(shell) = args.shell_completion {
-        shell.print_completion();
+        shell.write_completion(&mut std::io::stdout());
         return Ok(());
     }
 

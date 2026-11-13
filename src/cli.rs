@@ -1,5 +1,5 @@
 use clap::{CommandFactory, Parser, ValueEnum};
-use std::io;
+use std::{io::Write, vec};
 
 const EXE_NAME: &str = "nerdy_glyph_searcher";
 
@@ -24,8 +24,9 @@ pub struct Args {
     pub shell_completion: Option<Shell>,
 }
 
-#[derive(Debug, Clone, Copy, ValueEnum)]
+#[derive(Debug, Clone, ValueEnum, Default, Eq, PartialEq)]
 pub enum Shell {
+    #[default]
     Bash,
     Elvish,
     Fish,
@@ -37,15 +38,10 @@ pub enum Shell {
 }
 
 impl Shell {
-    pub fn print_completion(self) {
-        fn g(shell: clap_complete::shells::Shell) {
-            clap_complete::generate(
-                shell,
-                &mut Args::command(),
-                EXE_NAME,
-                &mut io::stdout(),
-            );
-        }
+    pub fn write_completion(&self, w: &mut dyn Write) {
+        let mut g = |shell: clap_complete::shells::Shell| {
+            clap_complete::generate(shell, &mut Args::command(), EXE_NAME, w);
+        };
 
         match self {
             Self::Bash => {
@@ -68,9 +64,36 @@ impl Shell {
                     clap_complete_nushell::Nushell,
                     &mut Args::command(),
                     EXE_NAME,
-                    &mut io::stdout(),
+                    w,
                 );
             }
         }
+    }
+
+    #[allow(unused)]
+    #[must_use]
+    fn get_all() -> Vec<Self> {
+        vec![
+            Self::Bash,
+            Self::Elvish,
+            Self::Fish,
+            Self::PowerShell,
+            Self::Zsh,
+            Self::Nushell,
+        ]
+    }
+
+    #[allow(unused)]
+    #[must_use]
+    fn extension(self) -> String {
+        match self {
+            Self::Bash => ".bash",
+            Self::Elvish => ".elv",
+            Self::Fish => ".fish",
+            Self::PowerShell => ".ps1",
+            Self::Zsh => ".zsh",
+            Self::Nushell => ".nu",
+        }
+        .to_string()
     }
 }
