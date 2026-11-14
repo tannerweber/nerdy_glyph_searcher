@@ -152,7 +152,7 @@ fn get_glyphs(face: &Face) -> Vec<char> {
 /// Returns a `Vector` of glyphs and their corresponding names.
 /// Parallelizing is important here.
 #[must_use]
-fn get_glyph_names(face: &Face, glyphs: &Vec<char>) -> Vec<(char, String)> {
+fn get_glyph_names(face: &Face, glyphs: &[char]) -> Vec<(char, String)> {
     glyphs
         .par_iter()
         .map(|g| {
